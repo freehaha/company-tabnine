@@ -1,4 +1,5 @@
-;;; company-tabnine.el --- A company-mode backend for TabNine
+;; company-tabnine.el --- A company-mode backend for TabNine -*- lexical-binding: t -*-
+;;
 ;;
 ;; Copyright (c) 2018 Tommy Xiang
 ;;
@@ -261,6 +262,11 @@ Resets every time successful completion is returned.")
 (defvar company-tabnine--response-chunks nil
   "The string to store response chunks from TabNine server.")
 
+(defvar company-tabnine-emacs-ng (featurep 'emacs-ng)
+  "enable ng")
+
+(when company-tabnine-emacs-ng
+  (eval-js-file "/home/haha/.doom.d/lisp/company-tabnine/connect.js"))
 ;;
 ;; Major mode definition
 ;;
@@ -383,7 +389,9 @@ Resets every time successful completion is returned.")
 (defun company-tabnine-send-request (request)
   "Send REQUEST to TabNine server.  REQUEST needs to be JSON-serializable object."
   (when (null company-tabnine--process)
-    (company-tabnine-start-process))
+    (if company-tabnine-emacs-ng
+      (my/start-tabnine-process)
+      (company-tabnine-start-process)))
   (when company-tabnine--process
     ;; TODO make sure utf-8 encoding works
     (let ((encoded (concat
@@ -396,9 +404,11 @@ Resets every time successful completion is returned.")
                             (json-encoding-pretty-print nil))
                         (json-encode-list request)))
                     "\n")))
-      (setq company-tabnine--response nil)
-      (process-send-string company-tabnine--process encoded)
-      (accept-process-output company-tabnine--process company-tabnine-wait))))
+      (my/tabnine-send-request encoded)
+      ;; (setq company-tabnine--response nil)
+      ;; (process-send-string company-tabnine--process encoded)
+      ;; (accept-process-output company-tabnine--process company-tabnine-wait))))
+      )))
 
 (defun company-tabnine--make-request (method)
   "Create request body for method METHOD and parameters PARAMS."
@@ -663,9 +673,12 @@ See documentation of `company-backends' for details."
   (cl-case command
     (interactive (company-begin-backend 'company-tabnine))
     (prefix (company-tabnine--prefix))
-    (candidates (company-tabnine--candidates arg))
+    (candidates '(:async . (lambda (callback) (my/get-candidates callback))))
+    ;; (candidates (company-tabnine--candidates arg))
     ;; TODO: should we use async or not?
     ;; '(:async . (lambda (callback)
+    ;;              (funcall callback (company-tabnine--candidates) arg))))
+    ;; (candidates '(:async . (lambda (callback)
     ;;              (funcall callback (company-tabnine--candidates) arg))))
     (meta (company-tabnine--meta arg))
     (annotation (company-tabnine--annotation arg))
