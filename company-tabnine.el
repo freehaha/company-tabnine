@@ -673,7 +673,9 @@ See documentation of `company-backends' for details."
   (cl-case command
     (interactive (company-begin-backend 'company-tabnine))
     (prefix (company-tabnine--prefix))
-    (candidates '(:async . (lambda (callback) (my/get-candidates callback))))
+    (candidates (cons :async
+                      (lambda (callback)
+                        (my/get-candidates callback arg))))
     ;; (candidates (company-tabnine--candidates arg))
     ;; TODO: should we use async or not?
     ;; '(:async . (lambda (callback)
