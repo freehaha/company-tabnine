@@ -2,7 +2,8 @@ let process = null;
 const decoder = new TextDecoder();
 const encoder = new TextEncoder();
 let buffer = "";
-let arrayBuffer = new Uint8Array(4096);
+const BUFFER_SIZE = 8 * 1024; // 8KB
+let arrayBuffer = new Uint8Array(BUFFER_SIZE);
 
 async function killProcess() {
   if (process) {
@@ -22,8 +23,7 @@ function startTabnineProcess() {
   });
   lisp.setq(lisp.symbols.company_tabnine__process, lisp.symbols.t);
   process = p;
-  lisp.print("tabnine process started");
-  setTimeout(getOutput, 0);
+  lisp.message("tabnine process started");
 }
 
 function sendString(string) {
@@ -32,10 +32,17 @@ function sendString(string) {
     return;
   }
   process.stdin.write(encoder.encode(string));
+  setTimeout(getOutput, 0);
 }
 
-function getCandidates(callback) {
-  lisp.funcall(callback, lisp.company_tabnine__candidates(""));
+let cbCandidate = null;
+let prefix = null;
+function getCandidates(callback, arg) {
+  lisp.company_tabnine_query();
+  prefix = arg;
+  cbCandidate = callback;
+  getOutput();
+  // lisp.funcall(callback, lisp.company_tabnine__candidates(""));
 }
 
 function getOutput() {
@@ -59,10 +66,12 @@ function getOutput() {
             lisp.symbols.alist
           );
           lisp.setq(lisp.symbols.company_tabnine__response, result);
+          lisp.funcall(cbCandidate, lisp.company_tabnine__candidates(prefix));
           buffer = "";
         } catch (e) {
           lisp.print(`parse err ${e.message} ${buffer}`);
         }
+        return;
       }
       setTimeout(getOutput, 0);
     })
@@ -97,16 +106,4 @@ lisp.defun({
   docString: "get candidates",
   interactive: true,
   func: getCandidates,
-});
-
-lisp.defun({
-  name: "my/test",
-  docString: "get candidates",
-  interactive: true,
-  func: function () {
-    return lisp.make.alist({
-      a: 123,
-      b: "abc",
-    });
-  },
 });

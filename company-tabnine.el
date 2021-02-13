@@ -404,11 +404,7 @@ Resets every time successful completion is returned.")
                             (json-encoding-pretty-print nil))
                         (json-encode-list request)))
                     "\n")))
-      (my/tabnine-send-request encoded)
-      ;; (setq company-tabnine--response nil)
-      ;; (process-send-string company-tabnine--process encoded)
-      ;; (accept-process-output company-tabnine--process company-tabnine-wait))))
-      )))
+          (my/tabnine-send-request encoded))))
 
 (defun company-tabnine--make-request (method)
   "Create request body for method METHOD and parameters PARAMS."
@@ -501,6 +497,21 @@ PROCESS is the process under watch, OUTPUT is the output received."
       (setq company-tabnine--response
             (company-tabnine--decode response)
             company-tabnine--response-chunks nil))))
+
+(defun company-tabnine--prefix-local ()
+  "Return the expression under the cursor."
+  (when (null company-tabnine--process)
+    (if company-tabnine-emacs-ng
+      (my/start-tabnine-process)
+      (company-tabnine-start-process)))
+  (if (or (looking-at "\s") (eolp))
+      (let (p1 p2 (skip-chars "-_A-Za-z0-9.?!@:"))
+        (save-excursion
+          (skip-chars-backward skip-chars)
+          (setq p1 (point))
+          (skip-chars-forward skip-chars)
+          (setq p2 (point))
+          (buffer-substring-no-properties p1 p2)))))
 
 (defun company-tabnine--prefix ()
   "Prefix-command handler for the company backend."
@@ -672,7 +683,7 @@ See documentation of `company-backends' for details."
   (interactive (list 'interactive))
   (cl-case command
     (interactive (company-begin-backend 'company-tabnine))
-    (prefix (company-tabnine--prefix))
+    (prefix (company-tabnine--prefix-local))
     (candidates (cons :async
                       (lambda (callback)
                         (my/get-candidates callback arg))))
