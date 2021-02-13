@@ -502,8 +502,7 @@ PROCESS is the process under watch, OUTPUT is the output received."
   "Return the expression under the cursor."
   (when (null company-tabnine--process)
     (if company-tabnine-emacs-ng
-      (my/start-tabnine-process)
-      (company-tabnine-start-process)))
+      (my/start-tabnine-process)))
   (if (or (looking-at "\s") (eolp))
       (let (p1 p2 (skip-chars "-_A-Za-z0-9.?!@:"))
         (save-excursion
