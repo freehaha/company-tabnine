@@ -32,7 +32,6 @@ function sendString(string) {
     return;
   }
   process.stdin.write(encoder.encode(string));
-  setTimeout(getOutput, 0);
 }
 
 let cbCandidate = null;
@@ -47,6 +46,7 @@ function getCandidates(callback, arg) {
 
 function getOutput() {
   if (!process) return;
+  lisp.message("get-output");
   process.stdout
     .read(arrayBuffer)
     .then((len) => {
@@ -60,20 +60,29 @@ function getOutput() {
         }
         // lisp.setq(lisp.symbols.company_tabnine__response);
         try {
-          let result = lisp.json_parse_string(
-            buffer,
-            lisp.symbols[":object-type"],
-            lisp.symbols.alist
-          );
-          lisp.setq(lisp.symbols.company_tabnine__response, result);
-          lisp.funcall(cbCandidate, lisp.company_tabnine__candidates(prefix));
+          let resp = JSON.parse(buffer);
+          let old_prefix = resp.old_prefix;
+          if (old_prefix && old_prefix.length > 0 && resp.results.length > 0) {
+            lisp.setq(lisp.symbols.company_prefix, old_prefix);
+            // lisp.message(`new prefix ${prefix}`);
+            let result = lisp.json_parse_string(
+              buffer,
+              lisp.symbols[":object-type"],
+              lisp.symbols.alist
+            );
+            lisp.setq(lisp.symbols.company_tabnine__response, result);
+            lisp.funcall(
+              cbCandidate,
+              lisp.company_tabnine__candidates(old_prefix)
+            );
+          }
           buffer = "";
         } catch (e) {
-          lisp.print(`parse err ${e.message} ${buffer}`);
+          lisp.message(`parse err ${e.message} ${buffer}`);
         }
         return;
       }
-      setTimeout(getOutput, 0);
+      // setTimeout(getOutput, 0);
     })
     .catch((err) => {
       lisp.print(`read err ${err.message}`);

@@ -503,14 +503,8 @@ PROCESS is the process under watch, OUTPUT is the output received."
   (when (null company-tabnine--process)
     (if company-tabnine-emacs-ng
       (my/start-tabnine-process)))
-  (if (or (looking-at "\s") (eolp))
-      (let (p1 p2 (skip-chars "-_A-Za-z0-9.?!@:"))
-        (save-excursion
-          (skip-chars-backward skip-chars)
-          (setq p1 (point))
-          (skip-chars-forward skip-chars)
-          (setq p2 (point))
-          (buffer-substring-no-properties p1 p2)))))
+  (company-tabnine-query)
+  (buffer-substring-no-properties (line-beginning-position) (line-end-position)))
 
 (defun company-tabnine--prefix ()
   "Prefix-command handler for the company backend."
@@ -686,6 +680,7 @@ See documentation of `company-backends' for details."
     (candidates (cons :async
                       (lambda (callback)
                         (my/get-candidates callback arg))))
+
     ;; (candidates (company-tabnine--candidates arg))
     ;; TODO: should we use async or not?
     ;; '(:async . (lambda (callback)
