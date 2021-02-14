@@ -498,7 +498,7 @@ PROCESS is the process under watch, OUTPUT is the output received."
             (company-tabnine--decode response)
             company-tabnine--response-chunks nil))))
 
-(defun company-tabnine--prefix-local ()
+(defun company-tabnine--prefix-line ()
   "Return the expression under the cursor."
   (when (null company-tabnine--process)
     (if company-tabnine-emacs-ng
@@ -676,7 +676,7 @@ See documentation of `company-backends' for details."
   (interactive (list 'interactive))
   (cl-case command
     (interactive (company-begin-backend 'company-tabnine))
-    (prefix (company-tabnine--prefix-local))
+    (prefix (company-tabnine--prefix-line))
     (candidates (cons :async
                       (lambda (callback)
                         (my/get-candidates callback arg))))

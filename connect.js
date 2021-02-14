@@ -5,7 +5,7 @@ let buffer = "";
 const BUFFER_SIZE = 8 * 1024; // 8KB
 let arrayBuffer = new Uint8Array(BUFFER_SIZE);
 
-async function killProcess() {
+async function killTabnineProcess() {
   if (process) {
     await process.kill(processId);
     process = null;
@@ -26,7 +26,7 @@ function startTabnineProcess() {
   lisp.message("tabnine process started");
 }
 
-function sendString(string) {
+function sendRequest(string) {
   if (!process) {
     lisp.setq(lisp.symbols.company_tabnine__process, lisp.symbols.nil);
     return;
@@ -37,16 +37,14 @@ function sendString(string) {
 let cbCandidate = null;
 let prefix = null;
 function getCandidates(callback, arg) {
-  lisp.company_tabnine_query();
+  // lisp.company_tabnine_query();
   prefix = arg;
   cbCandidate = callback;
   getOutput();
-  // lisp.funcall(callback, lisp.company_tabnine__candidates(""));
 }
 
 function getOutput() {
   if (!process) return;
-  lisp.message("get-output");
   process.stdout
     .read(arrayBuffer)
     .then((len) => {
@@ -58,13 +56,11 @@ function getOutput() {
         if (!buffer || buffer.length === 0) {
           buffer = blist.pop();
         }
-        // lisp.setq(lisp.symbols.company_tabnine__response);
         try {
           let resp = JSON.parse(buffer);
           let old_prefix = resp.old_prefix;
           if (old_prefix && old_prefix.length > 0 && resp.results.length > 0) {
             lisp.setq(lisp.symbols.company_prefix, old_prefix);
-            // lisp.message(`new prefix ${prefix}`);
             let result = lisp.json_parse_string(
               buffer,
               lisp.symbols[":object-type"],
@@ -84,8 +80,10 @@ function getOutput() {
       }
       // setTimeout(getOutput, 0);
     })
-    .catch((err) => {
-      lisp.print(`read err ${err.message}`);
+    .catch(async (err) => {
+      lisp.message(`error reading from tabnine, restarting ${err.message}`);
+      await killTabnineProcess();
+      startTabnineProcess();
     });
 }
 
@@ -93,7 +91,7 @@ lisp.defun({
   name: "my/tabnine-send-request",
   docString: "send request to tabnine",
   interactive: false,
-  func: sendString,
+  func: sendRequest,
 });
 
 lisp.defun({
@@ -107,7 +105,7 @@ lisp.defun({
   name: "my/kill-tabnine-process",
   docString: "kill tabnine process",
   interactive: false,
-  func: killProcess,
+  func: killTabnineProcess,
 });
 
 lisp.defun({
