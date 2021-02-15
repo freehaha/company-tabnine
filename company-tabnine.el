@@ -506,7 +506,8 @@ PROCESS is the process under watch, OUTPUT is the output received."
     (if company-tabnine-emacs-ng
       (my/start-tabnine-process)))
   (company-tabnine-query)
-  (buffer-substring-no-properties (line-beginning-position) (line-end-position)))
+  (let ((line (buffer-substring-no-properties (line-beginning-position) (line-end-position))))
+    (cons line t)))
 
 (defun company-tabnine--prefix ()
   "Prefix-command handler for the company backend."

@@ -5,9 +5,9 @@ let buffer = "";
 const BUFFER_SIZE = 8 * 1024; // 8KB
 let arrayBuffer = new Uint8Array(BUFFER_SIZE);
 
-async function killTabnineProcess() {
+function killTabnineProcess() {
   if (process) {
-    await process.kill(processId);
+    process.kill(0);
     process = null;
     lisp.setq(lisp.symbols.company_tabnine__process, lisp.symbols.nil);
   }
@@ -37,7 +37,10 @@ function sendRequest(string) {
   // clear the callbacks and startover
   cbCandidate = null;
   prefix = null;
-  process.stdin.write(encoder.encode(string));
+  process.stdin.write(encoder.encode(string)).catch((err) => {
+    killTabnineProcess();
+    startTabnineProcess();
+  });
 }
 
 function getCandidates(callback, arg) {
@@ -54,39 +57,49 @@ function getOutput() {
     .then((len) => {
       let out = decoder.decode(arrayBuffer.slice(0, len));
       buffer += out;
-      if (out[out.length - 1] === "\n") {
-        let blist = buffer.split("\n");
-        buffer = blist.pop();
-        if (!buffer || buffer.length === 0) {
-          buffer = blist.pop();
+      if (out[out.length - 1] === "\n" && buffer.length > 5) {
+        // we know last character is newline but we put 3 here
+        // in case there is another one
+        let idx = buffer.length - 3;
+        while (idx >= 0 && buffer[idx] !== "\n") {
+          idx--;
         }
+        buffer = buffer.substring(idx, buffer.length);
         try {
           let resp = JSON.parse(buffer);
           let old_prefix = resp.old_prefix;
-          if (old_prefix && old_prefix.length > 0 && resp.results.length > 0) {
+          if (resp.results.length > 0) {
             lisp.setq(lisp.symbols.company_prefix, old_prefix);
             let result = lisp.json_parse_string(
               buffer,
               lisp.symbols[":object-type"],
               lisp.symbols.alist
             );
-            lisp.setq(lisp.symbols.company_tabnine__response, result);
-            lisp.funcall(
-              cbCandidate,
-              lisp.company_tabnine__candidates(old_prefix)
-            );
+            if (cbCandidate) {
+              lisp.setq(lisp.symbols.company_tabnine__response, result);
+              lisp.funcall(
+                cbCandidate,
+                lisp.company_tabnine__candidates(old_prefix)
+              );
+              cbCandidate = null;
+            }
           }
           buffer = "";
         } catch (e) {
-          lisp.message(`parse err ${e.message} ${buffer}`);
+          lisp.message(`parse error ${e.message} ${buffer}`);
         }
         return;
       }
       // setTimeout(getOutput, 0);
     })
     .catch(async (err) => {
-      lisp.message(`error reading from tabnine, restarting ${err.message}`);
-      await killTabnineProcess();
+      if (err.message.startsWith("Not enough")) {
+        // ignore
+        return;
+      }
+      lisp.message(err.message);
+      lisp.message("error reading from tabnine, restarting");
+      killTabnineProcess();
       startTabnineProcess();
     });
 }
