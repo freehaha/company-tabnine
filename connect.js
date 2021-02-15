@@ -26,16 +26,20 @@ function startTabnineProcess() {
   lisp.message("tabnine process started");
 }
 
+let cbCandidate = null;
+let prefix = null;
+
 function sendRequest(string) {
   if (!process) {
     lisp.setq(lisp.symbols.company_tabnine__process, lisp.symbols.nil);
     return;
   }
+  // clear the callbacks and startover
+  cbCandidate = null;
+  prefix = null;
   process.stdin.write(encoder.encode(string));
 }
 
-let cbCandidate = null;
-let prefix = null;
 function getCandidates(callback, arg) {
   // lisp.company_tabnine_query();
   prefix = arg;
