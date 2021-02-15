@@ -266,7 +266,9 @@ Resets every time successful completion is returned.")
   "enable ng")
 
 (when company-tabnine-emacs-ng
-  (eval-js-file "/home/haha/.doom.d/lisp/company-tabnine/connect.js"))
+  (eval-js-file
+   (concat (file-name-directory load-file-name)
+   "./connect.js")))
 ;;
 ;; Major mode definition
 ;;
